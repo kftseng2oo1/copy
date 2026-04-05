@@ -1,9 +1,9 @@
 {
-  "name": "檔案剪貼神器",
-  "short_name": "檔案剪貼",
+  "name": "My PWA App",
+  "short_name": "MyApp",
   "description": "",
-  "start_url": "/copy/",
-  "scope": "/copy/",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "any",
   "theme_color": "#1a73e8",
@@ -14,9 +14,9 @@
   ],
   "shortcuts": [
     {
-      "name": "開啟 檔案剪貼",
-      "short_name": "檔案剪貼",
-      "url": "/copy/",
+      "name": "開啟 MyApp",
+      "short_name": "MyApp",
+      "url": "/",
       "icons": [
         {
           "src": "icon-192.png",
