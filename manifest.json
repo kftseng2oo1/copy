@@ -1,9 +1,9 @@
 {
-  "name": "My PWA App",
-  "short_name": "MyApp",
+  "name": "DATA複製神器",
+  "short_name": "DATA複製神器",
   "description": "",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "/copy/",
+  "scope": "/copy/",
   "display": "standalone",
   "orientation": "any",
   "theme_color": "#1a73e8",
@@ -14,9 +14,9 @@
   ],
   "shortcuts": [
     {
-      "name": "開啟 MyApp",
-      "short_name": "MyApp",
-      "url": "/",
+      "name": "開啟 DATA複製神器",
+      "short_name": "DATA複製神器",
+      "url": "/copy/",
       "icons": [
         {
           "src": "icon-192.png",
