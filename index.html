@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>剪貼簿存檔器 v2</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+TC:wght@300;400;700&display=swap');
+  :root {
+    --bg:#0e0e0e; --panel:#161616; --border:#2a2a2a;
+    --accent:#e8ff00; --orange:#ff6b35; --text:#f0f0f0;
+    --muted:#555; --success:#39ff14;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;
+    padding:40px 20px;position:relative;overflow-x:hidden;}
+  body::before{content:'';position:fixed;inset:0;
+    background-image:linear-gradient(rgba(232,255,0,.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(232,255,0,.03) 1px,transparent 1px);
+    background-size:40px 40px;pointer-events:none;z-index:0;}
+  .container{width:100%;max-width:820px;position:relative;z-index:1;}
+  header{
+    margin-bottom:24px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:4px;
+    padding:24px 28px 22px;
+    position:relative;
+    overflow:hidden;
+  }
+  header::after{
+    content:'';
+    position:absolute;
+    top:-30px; right:-30px;
+    width:200px; height:200px;
+    border-radius:50%;
+    background:radial-gradient(circle, rgba(232,255,0,.08) 0%, transparent 70%);
+    pointer-events:none;
+  }
+  .title-tag{font-family:'Space Mono',monospace;font-size:11px;color:var(--accent);
+    letter-spacing:4px;text-transform:uppercase;margin-bottom:10px;opacity:.9;}
+  h1{font-family:'Space Mono',monospace;font-size:clamp(28px,5vw,46px);
+    font-weight:700;line-height:1.1;letter-spacing:-1px;color:#fff;}
+  h1 span{color:var(--accent);}
+  .subtitle{margin-top:12px;color:#aaa;font-size:14px;font-weight:300;}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:4px;overflow:hidden;}
+
+  /* Mode tabs */
+  .mode-tabs{display:flex;border-bottom:1px solid var(--border);background:#111;}
+  .mode-tab{flex:1;padding:13px 16px;font-family:'Space Mono',monospace;font-size:11px;
+    letter-spacing:2px;text-transform:uppercase;color:var(--muted);cursor:pointer;
+    border:none;background:transparent;border-bottom:2px solid transparent;
+    transition:all .15s;display:flex;align-items:center;justify-content:center;gap:8px;}
+  .mode-tab:hover{color:var(--text);}
+  .mode-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+  .mode-tab.active.svg-tab{color:#7ee8fa;border-bottom-color:#7ee8fa;}
+  .mode-tab.active.png-tab{color:var(--orange);border-bottom-color:var(--orange);}
+  .badge{font-size:9px;padding:2px 6px;border-radius:2px;background:rgba(232,255,0,.1);color:var(--accent);}
+  .badge-svg{background:rgba(126,232,250,.1);color:#7ee8fa;}
+  .badge-png{background:rgba(255,107,53,.1);color:var(--orange);}
+
+  /* Input */
+  .paste-zone{position:relative;border-bottom:1px solid var(--border);}
+  .paste-label{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:3px;
+    color:var(--muted);padding:14px 20px 0;display:flex;align-items:center;gap:8px;}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  textarea{width:100%;min-height:240px;background:transparent;border:none;outline:none;
+    color:var(--text);font-family:'Space Mono',monospace;font-size:13px;line-height:1.7;
+    padding:14px 20px 20px;resize:vertical;caret-color:var(--accent);}
+  textarea::placeholder{color:#2a2a2a;font-family:'Noto Sans TC',sans-serif;font-size:14px;}
+  .paste-zone.drag-over::after{content:'放開以載入';position:absolute;inset:0;
+    background:rgba(232,255,0,.06);border:2px dashed var(--accent);display:flex;
+    align-items:center;justify-content:center;font-family:'Space Mono',monospace;
+    font-size:18px;color:var(--accent);letter-spacing:3px;z-index:10;pointer-events:none;}
+
+  .stats-bar{padding:8px 20px;display:flex;gap:20px;border-bottom:1px solid var(--border);background:#111;flex-wrap:wrap;}
+  .stat{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);display:flex;align-items:center;gap:6px;}
+  .stat strong{color:var(--accent);font-size:12px;}
+
+  /* SVG info */
+  .svg-info{display:none;padding:10px 20px;background:rgba(126,232,250,.04);
+    border-bottom:1px solid var(--border);font-family:'Space Mono',monospace;
+    font-size:11px;color:var(--muted);align-items:center;gap:8px;flex-wrap:wrap;}
+  .svg-info.visible{display:flex;}
+  .svg-ok{color:var(--success);font-weight:700;}
+  .svg-err{color:#ff4444;font-weight:700;}
+
+  /* PNG options */
+  .png-opts{display:none;padding:16px 20px;background:rgba(255,107,53,.03);
+    border-bottom:1px solid var(--border);gap:14px;flex-wrap:wrap;align-items:flex-end;}
+  .png-opts.visible{display:flex;}
+  .png-preview-wrap{display:none;padding:0 20px 16px;border-bottom:1px solid var(--border);}
+  .png-preview-wrap.visible{display:block;}
+  .preview-label{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;
+    color:var(--muted);margin-bottom:10px;text-transform:uppercase;}
+  #pngCanvas{max-width:100%;border:1px solid var(--border);border-radius:2px;display:block;}
+
+  /* Controls */
+  .controls{padding:20px;display:flex;flex-direction:column;gap:16px;}
+  .row{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;}
+  .field{display:flex;flex-direction:column;gap:6px;}
+  .field label{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;}
+  .field-fn{flex:2;min-width:180px;} .field-ext{flex:1;min-width:120px;}
+  input[type=text],input[type=number]{background:#111;border:1px solid var(--border);border-radius:2px;
+    color:var(--text);font-family:'Space Mono',monospace;font-size:13px;padding:10px 14px;outline:none;transition:border-color .2s;}
+  input:focus{border-color:var(--accent);}
+  input[type=number]{width:86px;}
+  select{background:#111;border:1px solid var(--border);border-radius:2px;color:var(--text);
+    font-family:'Space Mono',monospace;font-size:11px;padding:10px 28px 10px 12px;outline:none;
+    cursor:pointer;transition:border-color .2s;appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23555'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 10px center;}
+  select:focus{border-color:var(--accent);}
+
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;}
+  .chip{font-family:'Space Mono',monospace;font-size:10px;padding:4px 10px;
+    border:1px solid var(--border);border-radius:2px;color:var(--muted);cursor:pointer;
+    transition:all .15s;background:#111;letter-spacing:1px;}
+  .chip:hover,.chip.active{border-color:var(--accent);color:var(--accent);background:rgba(232,255,0,.05);}
+  .chip.svg-chip:hover,.chip.svg-chip.active{border-color:#7ee8fa;color:#7ee8fa;background:rgba(126,232,250,.05);}
+  .chip.png-chip:hover,.chip.png-chip.active{border-color:var(--orange);color:var(--orange);background:rgba(255,107,53,.05);}
+
+  .actions{display:flex;gap:10px;flex-wrap:wrap;}
+  .btn{font-family:'Space Mono',monospace;font-size:12px;letter-spacing:2px;padding:12px 20px;
+    border:none;border-radius:2px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:8px;text-transform:uppercase;}
+  .btn-primary{background:var(--accent);color:#000;font-weight:700;}
+  .btn-primary:hover{background:#fff;transform:translateY(-1px);box-shadow:0 4px 20px rgba(232,255,0,.3);}
+  .btn-primary:active{transform:translateY(0);}
+  .btn-sec{background:transparent;border:1px solid var(--border);color:var(--muted);}
+  .btn-sec:hover{border-color:var(--muted);color:var(--text);}
+  .btn-danger{background:transparent;border:1px solid #3a1a1a;color:#ff4444;}
+  .btn-danger:hover{background:rgba(255,68,68,.08);border-color:#ff4444;}
+  .btn-paste{background:transparent;border:1px solid rgba(232,255,0,.3);color:var(--accent);}
+  .btn-paste:hover{background:rgba(232,255,0,.08);border-color:var(--accent);}
+  .btn-orange{background:transparent;border:1px solid rgba(255,107,53,.4);color:var(--orange);}
+  .btn-orange:hover{background:rgba(255,107,53,.1);border-color:var(--orange);}
+
+  hr.div{border:none;border-top:1px solid var(--border);margin:4px 0;}
+
+  /* History */
+  .hist-section{margin-top:24px;border:1px solid var(--border);border-radius:4px;overflow:hidden;}
+  .hist-head{padding:12px 20px;background:var(--panel);border-bottom:1px solid var(--border);
+    display:flex;justify-content:space-between;align-items:center;}
+  .hist-head span{font-family:'Space Mono',monospace;font-size:10px;letter-spacing:3px;color:#aaa;text-transform:uppercase;}
+  .hist-list{max-height:240px;overflow-y:auto;background:var(--panel);}
+  .hist-list::-webkit-scrollbar{width:4px;}
+  .hist-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+  .hist-item{padding:12px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;cursor:pointer;transition:background .15s;}
+  .hist-item:last-child{border-bottom:none;}
+  .hist-item:hover{background:rgba(255,255,255,.03);}
+  .hext{font-family:'Space Mono',monospace;font-size:10px;padding:3px 8px;border-radius:2px;min-width:54px;text-align:center;letter-spacing:1px;}
+  .hext-text{background:rgba(232,255,0,.1);color:var(--accent);}
+  .hext-svg{background:rgba(126,232,250,.1);color:#7ee8fa;}
+  .hext-png{background:rgba(255,107,53,.12);color:var(--orange);}
+  .hname{font-family:'Space Mono',monospace;font-size:12px;color:var(--text);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .hsize{font-family:'Space Mono',monospace;font-size:10px;color:#777;}
+  .hdl{font-size:14px;cursor:pointer;opacity:.5;transition:opacity .15s;}
+  .hdl:hover{opacity:1;}
+  .hempty{padding:30px 20px;text-align:center;color:#888;font-size:13px;font-style:italic;}
+
+  .toast{position:fixed;bottom:30px;right:30px;color:#000;font-family:'Space Mono',monospace;
+    font-size:12px;letter-spacing:2px;padding:12px 20px;border-radius:2px;
+    transform:translateY(80px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);z-index:100;font-weight:700;}
+  .toast.show{transform:translateY(0);opacity:1;}
+  .hint{font-family:'Space Mono',monospace;font-size:10px;color:#666;margin-top:24px;text-align:center;letter-spacing:2px;}
+  kbd{background:#1e1e1e;border:1px solid #3a3a3a;border-radius:3px;padding:2px 6px;font-family:'Space Mono',monospace;font-size:10px;color:#888;}
+</style>
+
+<!-- PWA Meta — auto-injected by PWA 打包神器 -->
+<meta name="application-name" content="檔案剪貼神器">
+<meta name="description" content="">
+<meta name="theme-color" content="#1a73e8">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="檔案剪貼">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon.svg">
+<script>if('serviceWorker'in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').then(function(r){console.log('[SW] registered:',r.scope)}).catch(function(e){console.warn('[SW] failed:',e)});});}</script>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="title-tag">// CLIPBOARD SAVER v2.0</div>
+    <h1>剪貼簿<span>存檔器</span></h1>
+    <p class="subtitle">文字 / SVG / PNG — 貼上任何內容，存成任何格式</p>
+  </header>
+
+  <div class="card">
+    <!-- Tabs -->
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-mode="text">☰ 文字 <span class="badge">任意副檔名</span></button>
+      <button class="mode-tab svg-tab" data-mode="svg">◈ SVG <span class="badge badge-svg">.svg</span></button>
+      <button class="mode-tab png-tab" data-mode="png">▣ PNG <span class="badge badge-png">文字→圖</span></button>
+    </div>
+
+    <!-- Textarea -->
+    <div class="paste-zone" id="pasteZone">
+      <div class="paste-label"><span class="dot"></span><span id="inputLabel">INPUT CONTENT</span></div>
+      <textarea id="content" placeholder="在此貼上任何文字內容..."></textarea>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-bar">
+      <div class="stat">字元 <strong id="cChar">0</strong></div>
+      <div class="stat">行數 <strong id="cLine">0</strong></div>
+      <div class="stat">位元組 <strong id="cByte">0</strong></div>
+      <div class="stat" id="dimStat" style="display:none">尺寸 <strong id="dimVal">—</strong></div>
+    </div>
+
+    <!-- SVG info -->
+    <div class="svg-info" id="svgInfo">
+      SVG 狀態：<span id="svgStatus" class="svg-ok">等待輸入...</span>
+    </div>
+
+    <!-- PNG options -->
+    <div class="png-opts" id="pngOpts">
+      <div class="field"><label>寬度 px</label><input type="number" id="pW" value="800" min="100" max="4000"/></div>
+      <div class="field"><label>字型大小</label><input type="number" id="pFS" value="14" min="8" max="48"/></div>
+      <div class="field"><label>背景</label>
+        <select id="pBg">
+          <option value="#1e1e1e">深色</option>
+          <option value="#ffffff">白色</option>
+          <option value="#0d1117">GitHub Dark</option>
+          <option value="#fdf6e3">Solarized</option>
+          <option value="transparent">透明</option>
+        </select>
+      </div>
+      <div class="field"><label>文字色</label>
+        <select id="pFg">
+          <option value="#d4d4d4">淺灰</option>
+          <option value="#000000">黑色</option>
+          <option value="#e8ff00">螢光黃</option>
+          <option value="#39ff14">螢光綠</option>
+        </select>
+      </div>
+      <div class="field"><label>字型</label>
+        <select id="pFont">
+          <option value="'Courier New',monospace">Courier New</option>
+          <option value="monospace">Monospace</option>
+          <option value="Arial,sans-serif">Arial</option>
+        </select>
+      </div>
+      <button class="btn btn-orange" id="previewBtn" style="align-self:flex-end">⬡ 預覽</button>
+    </div>
+
+    <!-- PNG preview -->
+    <div class="png-preview-wrap" id="previewWrap">
+      <div class="preview-label">// PREVIEW</div>
+      <canvas id="pngCanvas"></canvas>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <div class="row">
+        <div class="field field-fn"><label>檔案名稱</label><input type="text" id="filename" value="clipboard"/></div>
+        <div class="field field-ext"><label>副檔名</label><input type="text" id="ext" value=".txt"/></div>
+      </div>
+
+      <div>
+        <div style="font-family:'Space Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:8px;">QUICK EXT</div>
+        <div class="chips" id="chipBar">
+          <span class="chip active" data-ext=".txt">.txt</span>
+          <span class="chip" data-ext=".md">.md</span>
+          <span class="chip" data-ext=".json">.json</span>
+          <span class="chip" data-ext=".csv">.csv</span>
+          <span class="chip" data-ext=".html">.html</span>
+          <span class="chip" data-ext=".js">.js</span>
+          <span class="chip" data-ext=".py">.py</span>
+          <span class="chip" data-ext=".css">.css</span>
+          <span class="chip" data-ext=".xml">.xml</span>
+          <span class="chip" data-ext=".sql">.sql</span>
+          <span class="chip" data-ext=".sh">.sh</span>
+          <span class="chip" data-ext=".yaml">.yaml</span>
+          <span class="chip" data-ext=".log">.log</span>
+          <span class="chip" data-ext=".ts">.ts</span>
+          <span class="chip" data-ext=".bat">.bat</span>
+          <span class="chip svg-chip" data-ext=".svg" data-mode="svg">.svg</span>
+          <span class="chip png-chip" data-ext=".png" data-mode="png">.png</span>
+        </div>
+      </div>
+
+      <div class="row" id="encRow">
+        <div class="field"><label>編碼</label>
+          <select id="enc">
+            <option value="utf-8">UTF-8</option>
+            <option value="utf-8-bom">UTF-8 with BOM</option>
+          </select>
+        </div>
+      </div>
+
+      <hr class="div">
+      <div class="actions">
+        <button class="btn btn-paste" id="pasteBtn">⌘ 從剪貼簿貼上</button>
+        <button class="btn btn-primary" id="dlBtn">↓ 下載</button>
+        <button class="btn btn-sec" id="cpBtn">⎘ 複製</button>
+        <button class="btn btn-danger" id="clrBtn">✕ 清除</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- History -->
+  <div class="hist-section">
+    <div class="hist-head">
+      <span>// 下載紀錄</span>
+      <button class="btn btn-sec" id="clrHistBtn" style="padding:4px 12px;font-size:10px;">清除</button>
+    </div>
+    <div class="hist-list" id="histList"><div class="hempty">尚無下載紀錄</div></div>
+  </div>
+
+  <div class="hint"><kbd>Ctrl</kbd>+<kbd>V</kbd> 貼上 · <kbd>Ctrl</kbd>+<kbd>S</kbd> 下載 · 拖曳檔案載入</div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const content = $('content'), filenameEl = $('filename'), extEl = $('ext');
+const toastEl = $('toast'), pasteZone = $('pasteZone');
+const pngOpts = $('pngOpts'), previewWrap = $('previewWrap');
+const svgInfo = $('svgInfo'), svgStatus = $('svgStatus');
+const dimStat = $('dimStat'), dimVal = $('dimVal');
+const pngCanvas = $('pngCanvas');
+
+let mode = 'text';
+let hist = JSON.parse(localStorage.getItem('csH2') || '[]');
+
+// ── Tabs ────────────────────────────────────────────────
+document.querySelectorAll('.mode-tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.mode-tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    mode = t.dataset.mode;
+    applyMode();
+  });
+});
+
+function applyMode() {
+  pngOpts.classList.toggle('visible', mode === 'png');
+  svgInfo.classList.toggle('visible', mode === 'svg');
+  previewWrap.classList.remove('visible');
+  dimStat.style.display = (mode !== 'text') ? 'flex' : 'none';
+  $('encRow').style.display = (mode === 'png') ? 'none' : '';
+
+  if (mode === 'text') {
+    extEl.value = '.txt'; setChipActive('.txt');
+    $('inputLabel').textContent = 'INPUT CONTENT';
+    content.placeholder = '在此貼上文字、程式碼、JSON、CSV、HTML...';
+  } else if (mode === 'svg') {
+    extEl.value = '.svg'; setChipActive('.svg');
+    $('inputLabel').textContent = 'SVG MARKUP';
+    content.placeholder = '貼上 SVG 程式碼，例：\n<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">\n  <circle cx="100" cy="100" r="80" fill="#e8ff00"/>\n</svg>';
+    checkSvg();
+  } else if (mode === 'png') {
+    extEl.value = '.png'; setChipActive('.png');
+    $('inputLabel').textContent = 'TEXT → PNG';
+    content.placeholder = '貼上文字內容，將渲染成 PNG 圖片下載...';
+    updatePngDim();
+  }
+}
+
+// ── Stats ───────────────────────────────────────────────
+content.addEventListener('input', () => {
+  const t = content.value;
+  $('cChar').textContent = t.length.toLocaleString();
+  $('cLine').textContent = t ? t.split('\n').length.toLocaleString() : '0';
+  $('cByte').textContent = fmtBytes(new TextEncoder().encode(t).length);
+  if (mode === 'svg') checkSvg();
+  if (mode === 'png') updatePngDim();
+});
+
+function fmtBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(1) + ' MB';
+}
+
+// ── SVG check ───────────────────────────────────────────
+function checkSvg() {
+  const code = content.value.trim();
+  if (!code) { svgStatus.textContent = '等待輸入...'; svgStatus.className = ''; dimVal.textContent = '—'; return; }
+  try {
+    const doc = new DOMParser().parseFromString(code, 'image/svg+xml');
+    if (doc.querySelector('parsererror')) throw 0;
+    const svg = doc.querySelector('svg');
+    if (!svg) throw 0;
+    let w = svg.getAttribute('width');
+    let h = svg.getAttribute('height');
+    if (!w || !h) {
+      const vb = svg.viewBox && svg.viewBox.baseVal;
+      if (vb) { w = w || vb.width; h = h || vb.height; }
+    }
+    svgStatus.textContent = '✓ 有效 SVG';
+    svgStatus.className = 'svg-ok';
+    dimVal.textContent = (w || '?') + ' × ' + (h || '?');
+  } catch(e) {
+    svgStatus.textContent = '✕ 格式錯誤';
+    svgStatus.className = 'svg-err';
+    dimVal.textContent = '—';
+  }
+}
+
+// ── PNG helpers ─────────────────────────────────────────
+function updatePngDim() {
+  const w = parseInt($('pW').value) || 800;
+  const fs = parseInt($('pFS').value) || 14;
+  const lines = (content.value || '').split('\n').length;
+  const h = Math.round(lines * fs * 1.6 + 48);
+  dimVal.textContent = w + ' × ' + h;
+}
+$('pW').addEventListener('input', updatePngDim);
+$('pFS').addEventListener('input', updatePngDim);
+
+function buildPngCanvas() {
+  const text = content.value;
+  if (!text.trim()) return null;
+  const lines = text.split('\n');
+  const w = parseInt($('pW').value) || 800;
+  const fs = parseInt($('pFS').value) || 14;
+  const lh = fs * 1.6;
+  const padX = 24, padY = 24;
+  const h = Math.round(lines.length * lh + padY * 2);
+  const bg = $('pBg').value;
+  const fg = $('pFg').value;
+  const font = $('pFont').value;
+
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  if (bg === 'transparent') ctx.clearRect(0,0,w,h);
+  else { ctx.fillStyle = bg; ctx.fillRect(0,0,w,h); }
+  ctx.fillStyle = fg;
+  ctx.font = `${fs}px ${font}`;
+  ctx.textBaseline = 'top';
+  lines.forEach((l, i) => ctx.fillText(l, padX, padY + i*lh, w - padX*2));
+  return c;
+}
+
+$('previewBtn').addEventListener('click', () => {
+  const c = buildPngCanvas();
+  if (!c) { showToast('✕ 內容為空', true); return; }
+  const ctx = pngCanvas.getContext('2d');
+  pngCanvas.width = c.width; pngCanvas.height = c.height;
+  ctx.drawImage(c, 0, 0);
+  previewWrap.classList.add('visible');
+});
+
+// ── Chips ───────────────────────────────────────────────
+document.querySelectorAll('.chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    extEl.value = chip.dataset.ext;
+    setChipActive(chip.dataset.ext);
+    if (chip.dataset.mode) {
+      mode = chip.dataset.mode;
+      document.querySelectorAll('.mode-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.mode === mode);
+      });
+      applyMode();
+    }
+  });
+});
+extEl.addEventListener('input', () => setChipActive(extEl.value));
+
+function setChipActive(ext) {
+  document.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c.dataset.ext === ext));
+}
+
+// ── Paste from clipboard ─────────────────────────────────
+$('pasteBtn').addEventListener('click', async () => {
+  try {
+    content.value = await navigator.clipboard.readText();
+    content.dispatchEvent(new Event('input'));
+    showToast('✓ 已從剪貼簿貼上');
+  } catch(e) { showToast('✕ 請手動 Ctrl+V', true); }
+});
+
+// ── Download ─────────────────────────────────────────────
+let dlBusy = false;
+$('dlBtn').addEventListener('click', async () => {
+  if (dlBusy) return;
+  dlBusy = true;
+  $('dlBtn').textContent = '… 處理中';
+  $('dlBtn').style.opacity = '.7';
+  try { await doDownload(); } finally {
+    setTimeout(() => {
+      dlBusy = false;
+      $('dlBtn').textContent = '↓ 下載';
+      $('dlBtn').style.opacity = '';
+    }, 1200);
+  }
+});
+
+async function doDownload() {
+  const text = content.value;
+  if (!text.trim()) { showToast('✕ 內容為空', true); return; }
+
+  let name = (filenameEl.value.trim() || 'clipboard').replace(/\.[^/.]+$/, '');
+  let ext = extEl.value.trim();
+  if (!ext.startsWith('.')) ext = '.' + ext;
+  const fullname = name + ext;
+
+  let blob, isImg = false;
+
+  if (mode === 'png' || ext === '.png') {
+    isImg = true;
+    const c = buildPngCanvas();
+    if (!c) return;
+    blob = await new Promise(r => c.toBlob(r, 'image/png'));
+  } else if (mode === 'svg' || ext === '.svg') {
+    isImg = true;
+    blob = new Blob([text], { type: 'image/svg+xml;charset=utf-8' });
+  } else {
+    const bom = $('enc').value === 'utf-8-bom' ? '\uFEFF' : '';
+    blob = new Blob([bom + text], { type: 'text/plain;charset=utf-8' });
+  }
+
+  triggerDL(blob, fullname);
+
+  // #4: 大型內容只存前 50KB 作為預覽，避免 localStorage 爆掉
+  const PREVIEW_LIMIT = 50 * 1024;
+  const storedContent = (!isImg && text.length > PREVIEW_LIMIT)
+    ? text.slice(0, PREVIEW_LIMIT) + '\n…（內容過長，僅保留預覽）'
+    : (isImg ? null : text);
+
+  const entry = { id: Date.now(), name: fullname, ext, size: blob.size,
+    content: storedContent, isImg,
+    truncated: !isImg && text.length > PREVIEW_LIMIT,
+    time: new Date().toLocaleTimeString('zh-TW', {hour:'2-digit', minute:'2-digit'}) };
+  hist.unshift(entry);
+  if (hist.length > 20) hist = hist.slice(0, 20);
+  try {
+    localStorage.setItem('csH2', JSON.stringify(hist));
+  } catch(e) {
+    // localStorage 滿了，移除最舊紀錄後重試
+    hist = hist.slice(0, 10);
+    try { localStorage.setItem('csH2', JSON.stringify(hist)); } catch(e2) {}
+  }
+  renderHist();
+  showToast('✓ 已下載 ' + fullname);
+}
+
+function triggerDL(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ── Copy / Clear ──────────────────────────────────────────
+$('cpBtn').addEventListener('click', async () => {
+  if (!content.value) { showToast('✕ 內容為空', true); return; }
+  await navigator.clipboard.writeText(content.value);
+  showToast('✓ 已複製');
+});
+$('clrBtn').addEventListener('click', () => {
+  content.value = '';
+  content.dispatchEvent(new Event('input'));
+  previewWrap.classList.remove('visible');
+  showToast('已清除');
+});
+
+// ── Keyboard shortcut ─────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); doDownload(); }
+});
+
+// ── Drag & drop ───────────────────────────────────────────
+function readFile(file) {
+  const parts = file.name.split('.');
+  const xExt = parts.length > 1 ? '.' + parts.pop() : '';
+  filenameEl.value = parts.join('.');
+  if (xExt) { extEl.value = xExt; setChipActive(xExt); }
+  const reader = new FileReader();
+  reader.onload = ev => {
+    content.value = ev.target.result;
+    content.dispatchEvent(new Event('input'));
+    showToast('✓ 已載入 ' + file.name);
+  };
+  reader.onerror = () => showToast('✕ 讀取失敗', true);
+  reader.readAsText(file, 'utf-8');
+}
+
+pasteZone.addEventListener('dragover', e => { e.preventDefault(); pasteZone.classList.add('drag-over'); });
+pasteZone.addEventListener('dragleave', () => pasteZone.classList.remove('drag-over'));
+pasteZone.addEventListener('drop', e => {
+  e.preventDefault(); pasteZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) readFile(file);
+});
+
+// ── History ───────────────────────────────────────────────
+$('clrHistBtn').addEventListener('click', () => {
+  hist = []; localStorage.removeItem('csH2'); renderHist(); showToast('已清除紀錄');
+});
+
+function extClass(e) {
+  if (e === '.svg') return 'hext-svg';
+  if (e === '.png') return 'hext-png';
+  return 'hext-text';
+}
+
+function renderHist() {
+  const el = $('histList');
+  if (!hist.length) { el.innerHTML = '<div class="hempty">尚無下載紀錄</div>'; return; }
+  el.innerHTML = hist.map(h => `
+    <div class="hist-item" data-id="${h.id}">
+      <span class="hext ${extClass(h.ext)}">${h.ext}</span>
+      <span class="hname">${h.name}${h.truncated ? ' <span style="color:#ff6b35;font-size:9px">預覽</span>' : ''}</span>
+      <span class="hsize">${fmtBytes(h.size)}</span>
+      <span class="hsize" style="color:#666">${h.time}</span>
+      ${h.content ? `<span class="hdl" data-id="${h.id}" title="重新下載">↓</span>` : '<span style="width:14px"></span>'}
+    </div>`).join('');
+
+  el.querySelectorAll('.hist-item').forEach(item => {
+    item.addEventListener('click', e => {
+      if (e.target.classList.contains('hdl')) return;
+      const entry = hist.find(h => h.id == item.dataset.id);
+      if (entry && entry.content) {
+        content.value = entry.content;
+        content.dispatchEvent(new Event('input'));
+        const parts = entry.name.split('.');
+        const xExt = '.' + parts.pop();
+        filenameEl.value = parts.join('.');
+        extEl.value = xExt; setChipActive(xExt);
+        showToast('已載入：' + entry.name);
+      }
+    });
+  });
+
+  el.querySelectorAll('.hdl').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const entry = hist.find(h => h.id == btn.dataset.id);
+      if (!entry || !entry.content) return;
+      triggerDL(new Blob([entry.content], {type:'text/plain;charset=utf-8'}), entry.name);
+      showToast('✓ 重新下載 ' + entry.name);
+    });
+  });
+}
+
+// ── Toast ─────────────────────────────────────────────────
+function showToast(msg, err = false) {
+  toastEl.textContent = msg;
+  toastEl.style.background = err ? '#ff4444' : 'var(--success)';
+  toastEl.style.color = err ? '#fff' : '#000';
+  toastEl.classList.add('show');
+  clearTimeout(toastEl._t);
+  toastEl._t = setTimeout(() => toastEl.classList.remove('show'), 2200);
+}
+
+// Init
+renderHist();
+</script>
+</body>
+</html>
