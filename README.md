@@ -1,44 +1,16 @@
-# DATA複製神器
+# 剪貼簿存檔器（DATA 複製神器）
 
-> 一個 Progressive Web App
+把剪貼簿裡的文字、SVG 原始碼或圖片，快速存成 TXT、SVG、PNG、JPG 檔，並保留下載紀錄。
 
-## 📦 包含檔案
+**線上使用**：https://kftseng2oo1.github.io/copy/
 
-- `icon-192.png`
-- `icon-512.png`
-- `manifest.json`
-- `sw.js`
-- `index.html`
-- `icon.svg`
-- `icon-maskable.svg`
-- `offline.html`
+## 主要功能
+- 四種模式：☰ 文字 TXT、◈ SVG、▣ PNG、◉ JPG
+- 「貼上」直接讀剪貼簿；SVG 模式會檢查格式是否有效並可 ⬡ 預覽
+- PNG／JPG 可設定尺寸與品質，SVG 可轉成點陣圖
+- 下載紀錄含縮圖，可重新下載、還原內容或刪除
 
-## 🚀 部署到 GitHub Pages
-
-```bash
-git init
-git add .
-git commit -m "init: DATA複製神器 PWA"
-git branch -M main
-git remote add origin https://github.com/<username>/<repo>.git
-git push -u origin main
-```
-
-然後在 GitHub repo → **Settings → Pages** → Source 選 `main` 分支，等待幾分鐘後即可訪問。
-
-## 📱 安裝 PWA
-
-在支援的瀏覽器（Chrome / Edge / Safari iOS）中打開網頁，  
-點擊「**安裝**」或「**加入主畫面**」即可將此 App 安裝到裝置。
-
-## ⚙ 技術規格
-
-| 項目 | 值 |
-|------|-----|
-| display | standalone |
-| theme_color | #1a73e8 |
-| lang | zh-TW |
-| scope | /copy/ |
-
----
-*由 [PWA 打包神器](https://github.com) 自動生成*
+## 技術與依賴
+- 單檔 HTML PWA（`index.html` 內含全部 HTML/CSS/JS），`manifest.json` + `sw.js` 提供安裝到主畫面與離線快取。
+- Clipboard API、Canvas、FileReader
+- 紀錄存在 localStorage：`cs_pro_hist`
